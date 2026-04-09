@@ -128,9 +128,15 @@ class AuthV2Service:
         )
         return {
             "ok": True,
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "user": {"id": user["id"], "email": user["email"], "name": user.get("name", "")},
+            "accessToken": access_token,
+            "refreshToken": refresh_token,
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "name": user.get("name", ""),
+                "role": membership["role"],
+                "orgId": membership["org_id"],
+            },
             "organization": {"id": membership["org_id"]},
             "role": membership["role"],
         }
@@ -151,7 +157,7 @@ class AuthV2Service:
             "iat": _now_epoch(),
             "exp": _now_epoch() + 3600,
         }
-        return {"ok": True, "access_token": self._sign(payload)}
+        return {"ok": True, "accessToken": self._sign(payload)}
 
     def logout(self, *, refresh_token: str) -> dict[str, Any]:
         self.store.revoke_session(refresh_token)
