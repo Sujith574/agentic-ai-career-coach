@@ -310,7 +310,7 @@ export default function ResumeAnalysis() {
                         >
                           DOWNLOAD_DATA_PACK // JSON
                         </Button>
-                     </div>
+                     </Card>
                   </div>
                </div>
             </motion.div>
