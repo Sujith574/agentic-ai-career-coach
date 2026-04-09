@@ -14,7 +14,7 @@ services:
         sync: false
       - key: MONGODB_DB
         value: agentic_ai_career_coach
-  - type: web
+  - type: static
     name: agentic-ai-career-coach-frontend
     runtime: static
     rootDir: frontend
@@ -25,5 +25,5 @@ services:
         sync: false
     routes:
       - type: rewrite
-        source: /*
+        source: /.*
         destination: /index.html
