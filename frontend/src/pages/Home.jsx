@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import AuthGate from "../components/AuthGate";
 import Dashboard from "../components/Dashboard";
 import UploadResume from "../components/UploadResume";
+import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../services/apiClient";
 
 const demoResume = {
@@ -14,9 +16,12 @@ const demoResume = {
 };
 
 export default function Home() {
+  const { role, logout } = useAuth();
   const [analysis, setAnalysis] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
+  const [subscription, setSubscription] = useState(null);
+  const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [mockLoading, setMockLoading] = useState(false);
@@ -74,17 +79,17 @@ export default function Home() {
 
     try {
       const data = await apiRequest(
-        "/generate-tasks",
+        "/api/v1/tasks/generate",
         {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume: resumeData }),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysis: resumeData }),
         },
         { retries: 1, timeoutMs: 15000 }
       );
-      setTasks(data);
+      setTasks(data.tasks || []);
       try {
-        const timeline = await apiRequest("/agent-timeline", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
+        const timeline = await apiRequest("/api/v1/timeline", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
         setTimelineEvents(timeline.events || []);
       } catch {
         setTimelineEvents(fallbackTimeline);
@@ -112,15 +117,15 @@ export default function Home() {
       }
 
       const data = await apiRequest(
-        "/upload-resume",
+        "/api/v1/resume/upload",
         {
           method: "POST",
           body: formData,
         },
         { retries: 1, timeoutMs: 30000 }
       );
-      setAnalysis(data);
-      await runTaskGeneration(data);
+      setAnalysis(data.analysis || demoResume);
+      await runTaskGeneration(data.analysis || demoResume);
     } catch {
       if (setError) {
         setError("Resume processing failed. Showing demo data.");
@@ -138,7 +143,7 @@ export default function Home() {
     setChatLoading(true);
     try {
       const data = await apiRequest(
-        "/chat",
+        "/api/v1/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -165,9 +170,9 @@ export default function Home() {
     setMockLoading(true);
     try {
       const profile = encodeURIComponent(JSON.stringify(analysis || demoResume));
-      let data = await apiRequest("/mock-interview", { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+      let data = await apiRequest("/api/v1/mock-interview", { method: "GET" }, { retries: 1, timeoutMs: 15000 });
       if (!data?.technical?.length || !data?.hr?.length) {
-        data = await apiRequest(`/mock-interview?profile=${profile}`, { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+        data = await apiRequest(`/api/v1/mock-interview?profile=${profile}`, { method: "GET" }, { retries: 1, timeoutMs: 15000 });
       }
       setMockQuestions(data);
     } catch {
@@ -187,6 +192,21 @@ export default function Home() {
     }
   };
 
+  const loadBilling = async () => {
+    try {
+      const data = await apiRequest("/api/v1/billing/subscription", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
+      setSubscription(data.subscription || null);
+      setUsage(data.usage || []);
+    } catch {
+      setSubscription(null);
+      setUsage([]);
+    }
+  };
+
+  useEffect(() => {
+    loadBilling();
+  }, []);
+
   const toggleTaskStatus = (idx) => {
     setTasks((prev) =>
       prev.map((task, index) =>
@@ -198,7 +218,8 @@ export default function Home() {
   };
 
   return (
-    <main className="app-bg min-h-screen text-slate-100">
+    <AuthGate>
+      <main className="app-bg min-h-screen text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <header className="mb-8 flex flex-col gap-4 rounded-2xl border border-blue-400/20 bg-slate-950/50 p-6 md:flex-row md:items-center md:justify-between">
           <div>
@@ -207,10 +228,19 @@ export default function Home() {
             </p>
             <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Agentic AI Career Coach</h1>
             <p className="mt-2 text-sm text-slate-300">{headerSubtitle}</p>
+            <p className="mt-1 text-xs text-slate-400">Role: {role}</p>
           </div>
-          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
-            Autonomous Analyze {"->"} Decide {"->"} Act
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+              Autonomous Analyze {"->"} Decide {"->"} Act
+            </span>
+            <button
+              onClick={logout}
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200"
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         <div className="glass-card rounded-2xl p-5 md:p-6">
@@ -221,6 +251,8 @@ export default function Home() {
               analysis={analysis}
               tasks={tasks}
               timelineEvents={timelineEvents}
+              subscription={subscription}
+              usage={usage}
               onToggleTask={toggleTaskStatus}
               chatMessages={chatMessages}
               onChatSend={handleSendChat}
@@ -232,6 +264,7 @@ export default function Home() {
           )}
         </div>
       </div>
-    </main>
+      </main>
+    </AuthGate>
   );
 }

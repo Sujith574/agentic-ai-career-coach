@@ -1,4 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const AUTH_KEY = "agentic_saas_auth";
 
 const DEFAULT_TIMEOUT_MS = 20000;
 
@@ -18,8 +19,17 @@ export async function apiRequest(path, options = {}, config = {}) {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      const authRaw = localStorage.getItem(AUTH_KEY);
+      const auth = authRaw ? JSON.parse(authRaw) : null;
+      const mergedHeaders = {
+        ...(options.headers || {}),
+      };
+      if (auth?.accessToken) {
+        mergedHeaders.Authorization = `Bearer ${auth.accessToken}`;
+      }
       const response = await fetch(`${API_URL}${path}`, {
         ...options,
+        headers: mergedHeaders,
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
