@@ -112,6 +112,7 @@ export default function Billing() {
                   variant={plan.variant} 
                   disabled={isCurrent}
                   className="w-full"
+                  onClick={() => !isCurrent && (window.location.href = "https://business.paytm.com/")}
                 >
                   {isCurrent ? "Current Plan" : plan.buttonText}
                 </Button>

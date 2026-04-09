@@ -4,8 +4,10 @@ import Billing from "./pages/Billing";
 import Dashboard from "./pages/Dashboard";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
+import MockInterview from "./pages/MockInterview";
 import Register from "./pages/Register";
 import ResetPassword from "./pages/ResetPassword";
+import ResumeAnalysis from "./pages/ResumeAnalysis";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -41,6 +43,24 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Billing />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/resume-analysis" 
+            element={
+              <ProtectedRoute>
+                <ResumeAnalysis />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/mock-interview" 
+            element={
+              <ProtectedRoute>
+                <MockInterview />
               </ProtectedRoute>
             } 
           />
