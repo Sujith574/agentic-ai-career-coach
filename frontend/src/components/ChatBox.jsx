@@ -12,9 +12,9 @@ export default function ChatBox({ messages, onSend, loading }) {
   };
 
   return (
-    <div className="rounded-2xl bg-slate-900 p-5 ring-1 ring-slate-800">
+    <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
       <h3 className="text-lg font-semibold text-white">AI Mentor Chat</h3>
-      <div className="mt-4 h-64 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950 p-3">
+      <div className="mt-4 h-72 overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/80 p-3">
         {messages.length === 0 ? (
           <p className="text-sm text-slate-500">Ask: What should I do?</p>
         ) : (
@@ -23,7 +23,9 @@ export default function ChatBox({ messages, onSend, loading }) {
               <div key={idx} className={msg.role === "user" ? "text-right" : "text-left"}>
                 <span
                   className={`inline-block max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                    msg.role === "user" ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-100"
+                    msg.role === "user"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+                      : "bg-slate-800 text-slate-100"
                   }`}
                 >
                   {msg.content}
@@ -43,7 +45,7 @@ export default function ChatBox({ messages, onSend, loading }) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-70"
+          className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 text-sm font-medium text-white hover:from-blue-500 hover:to-indigo-500 disabled:opacity-70"
         >
           {loading ? "..." : "Send"}
         </button>

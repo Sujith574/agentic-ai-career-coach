@@ -5,25 +5,25 @@ from typing import Any
 import requests
 
 DEMO_RESUME_JSON = {
-    "skills": ["Python", "HTML", "SQL", "Flask", "React"],
-    "missing_skills": ["DSA", "System Design"],
+    "skills": ["HTML", "CSS"],
+    "missing_skills": ["DSA", "React"],
     "projects": 1,
     "experience_level": "Beginner",
-    "suggested_roles": ["Frontend Developer", "Software Engineer"],
-    "placement_probability": 62,
+    "suggested_roles": ["Frontend Developer"],
+    "placement_probability": 55,
     "resume_text": "Demo profile with no internship experience.",
 }
 
 
 class AIService:
     def __init__(self) -> None:
-        self.api_key = os.getenv("GROQ_API_KEY", "")
-        self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-        self.base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
+        self.api_key = os.getenv("OPENAI_API_KEY", "")
+        self.model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
     def _chat_completion(self, prompt: str) -> str:
         if not self.api_key:
-            raise RuntimeError("GROQ_API_KEY not configured")
+            raise RuntimeError("OPENAI_API_KEY not configured")
 
         response = requests.post(
             f"{self.base_url}/chat/completions",
@@ -34,7 +34,10 @@ class AIService:
             json={
                 "model": self.model,
                 "messages": [
-                    {"role": "system", "content": "You are a precise JSON-first assistant."},
+                    {
+                        "role": "system",
+                        "content": "You are a precise JSON-first assistant for a career coaching app.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
@@ -49,20 +52,29 @@ class AIService:
         if not resume_text.strip():
             return DEMO_RESUME_JSON
 
-        prompt = f"""Analyze the following resume and return ONLY valid JSON.
+        prompt = f"""Analyze this resume and return ONLY JSON.
 
 Extract:
 
-* skills (array)
-* missing_skills (array)
-* number of projects (integer)
-* experience level (Beginner/Intermediate/Advanced)
-* suggested roles (array)
+* skills
+* missing_skills
+* number of projects
+* experience level
+* suggested roles
 * placement probability (0-100)
 
-Resume: {resume_text}
+Resume: <TEXT>
+{resume_text}
 
-Return ONLY JSON. No explanation."""
+Return ONLY JSON with this exact schema:
+{{
+  "skills": [],
+  "missing_skills": [],
+  "projects": 0,
+  "experience_level": "",
+  "suggested_roles": [],
+  "placement_probability": 0
+}}"""
         try:
             raw = self._chat_completion(prompt).strip()
             data = json.loads(raw)
@@ -74,18 +86,14 @@ Return ONLY JSON. No explanation."""
             return fallback
 
     def mentor_chat(self, message: str, context: dict[str, Any]) -> str:
-        prompt = f"""Act as an AI career coach.
+        prompt = f"""You are an AI career coach.
 
-User resume data: {json.dumps(context)}
+Resume data: {json.dumps(context)}
 
-User question: {message}
+User question: <MESSAGE>
+{message}
 
-Respond with:
-
-* Clear advice
-* Actionable steps
-* No generic responses
-* Be direct and practical"""
+Give direct, actionable advice based on the data."""
         try:
             return self._chat_completion(prompt).strip()
         except Exception:
@@ -101,9 +109,10 @@ Respond with:
 * 3 technical interview questions
 * 2 HR questions
 
-Based on this profile: {json.dumps(profile)}
+Based on this profile: <JSON>
+{json.dumps(profile)}
 
-Return JSON format:
+Return JSON only:
 {{
 "technical": [],
 "hr": []

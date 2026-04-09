@@ -53,9 +53,9 @@ export default function LoginCard({ onLoginSuccess }) {
   };
 
   return (
-    <div className="mx-auto max-w-md rounded-2xl bg-slate-900 p-6 ring-1 ring-slate-800">
+    <div className="mx-auto max-w-md rounded-2xl border border-cyan-400/20 bg-slate-900/70 p-6">
       <h2 className="text-2xl font-semibold text-white">OTP Login</h2>
-      <p className="mt-2 text-sm text-slate-400">
+      <p className="mt-2 text-sm text-slate-300">
         Login for all user types before using Agentic AI Career Coach.
       </p>
 
@@ -65,12 +65,12 @@ export default function LoginCard({ onLoginSuccess }) {
             type="email"
             required
             placeholder="Enter your email"
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-slate-100"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
           <select
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-slate-100"
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
@@ -83,7 +83,7 @@ export default function LoginCard({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-70"
+            className="w-full rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-2 font-medium text-white hover:from-blue-500 hover:to-cyan-500 disabled:opacity-70"
           >
             {loading ? "Sending OTP..." : "Send OTP"}
           </button>
@@ -94,7 +94,7 @@ export default function LoginCard({ onLoginSuccess }) {
             type="text"
             required
             placeholder="Enter 6-digit OTP"
-            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-slate-100"
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
           />
@@ -105,7 +105,7 @@ export default function LoginCard({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-500 disabled:opacity-70"
+            className="w-full rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 font-medium text-white hover:from-emerald-500 hover:to-teal-500 disabled:opacity-70"
           >
             {loading ? "Verifying..." : "Verify OTP & Login"}
           </button>

@@ -5,17 +5,23 @@ function priorityClasses(priority) {
 }
 
 export default function TaskList({ tasks, onToggleTask }) {
+  const completed = tasks.filter((t) => t.status === "Completed").length;
   return (
-    <div className="rounded-2xl bg-slate-900 p-5 ring-1 ring-slate-800">
-      <h3 className="text-lg font-semibold text-white">Agentic Task List</h3>
+    <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Agentic Task List</h3>
+        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-200">
+          {completed}/{tasks.length} done
+        </span>
+      </div>
       <div className="mt-4 space-y-3">
         {tasks.map((item, idx) => (
           <div
-            key={`${item.task}-${idx}`}
-            className="rounded-lg border border-slate-800 bg-slate-950 p-3"
+            key={`${item.title}-${idx}`}
+            className="rounded-lg border border-slate-800 bg-slate-950/80 p-3"
           >
             <div className="flex items-start justify-between gap-3">
-              <p className="text-sm text-slate-100">{item.task}</p>
+              <p className="text-sm text-slate-100">{item.title}</p>
               <span className={`rounded-full px-2 py-1 text-xs ${priorityClasses(item.priority)}`}>
                 {item.priority}
               </span>

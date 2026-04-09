@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -38,6 +39,12 @@ def chat():
 @chat_bp.route("/mock-interview", methods=["GET"])
 def mock_interview():
     context = request.get_json(silent=True) or request.args.to_dict()
+    profile_raw = context.get("profile")
+    if isinstance(profile_raw, str):
+        try:
+            context = json.loads(profile_raw)
+        except Exception:
+            context = {}
     ai_service = AIService()
     questions = ai_service.mock_interview_questions(context)
     return jsonify(questions), 200

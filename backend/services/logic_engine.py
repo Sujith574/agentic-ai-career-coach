@@ -21,7 +21,7 @@ def generate_rule_based_tasks(resume_data: dict[str, Any]) -> list[dict[str, str
     if "dsa" not in skills:
         tasks.append(
             {
-                "task": "Solve 10 DSA problems daily",
+                "title": "Solve 10 DSA problems daily",
                 "priority": "High",
                 "status": "Pending",
             }
@@ -30,7 +30,7 @@ def generate_rule_based_tasks(resume_data: dict[str, Any]) -> list[dict[str, str
     if projects < 2:
         tasks.append(
             {
-                "task": "Build 2 real-world projects",
+                "title": "Build 2 real-world projects",
                 "priority": "High",
                 "status": "Pending",
             }
@@ -39,7 +39,7 @@ def generate_rule_based_tasks(resume_data: dict[str, Any]) -> list[dict[str, str
     if "internship" not in text_blob:
         tasks.append(
             {
-                "task": "Apply to internships on LinkedIn",
+                "title": "Apply to internships on LinkedIn",
                 "priority": "Medium",
                 "status": "Pending",
             }
@@ -48,7 +48,7 @@ def generate_rule_based_tasks(resume_data: dict[str, Any]) -> list[dict[str, str
     if placement_probability < 70:
         tasks.append(
             {
-                "task": "Improve core fundamentals",
+                "title": "Improve core fundamentals",
                 "priority": "High",
                 "status": "Pending",
             }
@@ -57,7 +57,7 @@ def generate_rule_based_tasks(resume_data: dict[str, Any]) -> list[dict[str, str
     if not tasks:
         tasks.append(
             {
-                "task": "Maintain momentum with one mock interview this week",
+                "title": "Maintain momentum with one mock interview this week",
                 "priority": "Low",
                 "status": "Pending",
             }

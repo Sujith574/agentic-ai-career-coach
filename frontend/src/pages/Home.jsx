@@ -1,32 +1,49 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dashboard from "../components/Dashboard";
-import LoginCard from "../components/LoginCard";
 import UploadResume from "../components/UploadResume";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { apiRequest } from "../services/apiClient";
 
 const demoResume = {
-  skills: ["Python", "HTML", "SQL", "React"],
-  missing_skills: ["DSA", "System Design"],
+  skills: ["HTML", "CSS"],
+  missing_skills: ["DSA", "React"],
   projects: 1,
   experience_level: "Beginner",
-  suggested_roles: ["Frontend Developer", "Software Engineer"],
-  placement_probability: 62,
-  resume_text: "Demo fallback candidate profile.",
+  suggested_roles: ["Frontend Developer"],
+  placement_probability: 55,
+  resume_text: "Demo fallback candidate profile with no internships.",
 };
 
 export default function Home() {
-  const [session, setSession] = useState(() => {
-    const raw = localStorage.getItem("career_coach_session");
-    return raw ? JSON.parse(raw) : null;
-  });
   const [analysis, setAnalysis] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [timelineEvents, setTimelineEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [mockLoading, setMockLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [mockQuestions, setMockQuestions] = useState(null);
+
+  useEffect(() => {
+    if (!analysis) return undefined;
+
+    const interval = setInterval(() => {
+      setTimelineEvents((prev) => {
+        const pendingCount = tasks.filter((task) => task.status === "Pending").length;
+        const pulseEvent = {
+          timestamp: new Date().toISOString(),
+          stage: "act",
+          message:
+            pendingCount > 0
+              ? `Live pulse: ${pendingCount} pending task(s) still being monitored`
+              : "Live pulse: all tasks complete, tracking consistency",
+          meta: { pulse: true, pendingCount },
+        };
+        return [pulseEvent, ...prev].slice(0, 60);
+      });
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [analysis, tasks]);
 
   const headerSubtitle = useMemo(
     () =>
@@ -37,20 +54,48 @@ export default function Home() {
   );
 
   const runTaskGeneration = async (resumeData) => {
+    const fallbackTimeline = [
+      {
+        timestamp: new Date().toISOString(),
+        stage: "analyze",
+        message: "Detected gap: DSA not present in skill profile",
+      },
+      {
+        timestamp: new Date().toISOString(),
+        stage: "decide",
+        message: "Created task: Solve 10 DSA problems daily",
+      },
+      {
+        timestamp: new Date().toISOString(),
+        stage: "act",
+        message: "Raised alert: Daily DSA practice is overdue",
+      },
+    ];
+
     try {
-      const response = await fetch(`${API_URL}/generate-tasks`, {
+      const data = await apiRequest(
+        "/generate-tasks",
+        {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume: resumeData }),
-      });
-      if (!response.ok) throw new Error("tasks API failed");
-      const data = await response.json();
+        },
+        { retries: 1, timeoutMs: 15000 }
+      );
       setTasks(data);
+      try {
+        const timeline = await apiRequest("/agent-timeline", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
+        setTimelineEvents(timeline.events || []);
+      } catch {
+        setTimelineEvents(fallbackTimeline);
+      }
     } catch {
       setTasks([
-        { task: "Solve 10 DSA problems daily", priority: "High", status: "Pending" },
-        { task: "Build 2 real-world projects", priority: "High", status: "Pending" },
+        { title: "Solve 10 DSA problems daily", priority: "High", status: "Pending" },
+        { title: "Build 2 real-world projects", priority: "High", status: "Pending" },
+        { title: "Apply to internships on LinkedIn", priority: "Medium", status: "Pending" },
       ]);
+      setTimelineEvents(fallbackTimeline);
     }
   };
 
@@ -58,6 +103,7 @@ export default function Home() {
     setLoading(true);
     setMockQuestions(null);
     setChatMessages([]);
+    setTimelineEvents([]);
 
     try {
       const formData = new FormData();
@@ -65,12 +111,14 @@ export default function Home() {
         formData.append("resume", file);
       }
 
-      const response = await fetch(`${API_URL}/upload-resume`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error("upload failed");
-      const data = await response.json();
+      const data = await apiRequest(
+        "/upload-resume",
+        {
+          method: "POST",
+          body: formData,
+        },
+        { retries: 1, timeoutMs: 30000 }
+      );
       setAnalysis(data);
       await runTaskGeneration(data);
     } catch {
@@ -89,13 +137,15 @@ export default function Home() {
     setChatMessages(nextMessages);
     setChatLoading(true);
     try {
-      const response = await fetch(`${API_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, context: analysis || demoResume }),
-      });
-      if (!response.ok) throw new Error("chat failed");
-      const data = await response.json();
+      const data = await apiRequest(
+        "/chat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, context: analysis || demoResume }),
+        },
+        { retries: 1, timeoutMs: 20000 }
+      );
       setChatMessages([...nextMessages, { role: "assistant", content: data.reply }]);
     } catch {
       setChatMessages([
@@ -114,11 +164,11 @@ export default function Home() {
   const startMockInterview = async () => {
     setMockLoading(true);
     try {
-      const response = await fetch(`${API_URL}/mock-interview`, {
-        method: "GET",
-      });
-      if (!response.ok) throw new Error("mock interview failed");
-      const data = await response.json();
+      const profile = encodeURIComponent(JSON.stringify(analysis || demoResume));
+      let data = await apiRequest("/mock-interview", { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+      if (!data?.technical?.length || !data?.hr?.length) {
+        data = await apiRequest(`/mock-interview?profile=${profile}`, { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+      }
       setMockQuestions(data);
     } catch {
       setMockQuestions({
@@ -148,39 +198,29 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <header className="mb-6">
-          <h1 className="text-3xl font-bold text-white">Agentic AI Career Coach</h1>
-          <p className="mt-2 text-sm text-slate-400">{headerSubtitle}</p>
+    <main className="app-bg min-h-screen text-slate-100">
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <header className="mb-8 flex flex-col gap-4 rounded-2xl border border-blue-400/20 bg-slate-950/50 p-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
+              Hackathon Edition
+            </p>
+            <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Agentic AI Career Coach</h1>
+            <p className="mt-2 text-sm text-slate-300">{headerSubtitle}</p>
+          </div>
+          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            Autonomous Analyze {"->"} Decide {"->"} Act
+          </span>
         </header>
 
-        {!session ? (
-          <LoginCard
-            onLoginSuccess={(data) => {
-              setSession(data);
-              localStorage.setItem("career_coach_session", JSON.stringify(data));
-            }}
-          />
-        ) : !analysis ? (
-          <UploadResume onUploaded={handleUploadResume} loading={loading} />
-        ) : (
-          <>
-            <div className="mb-4 flex justify-end">
-              <button
-                className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
-                onClick={() => {
-                  setSession(null);
-                  setAnalysis(null);
-                  localStorage.removeItem("career_coach_session");
-                }}
-              >
-                Logout ({session.role})
-              </button>
-            </div>
+        <div className="glass-card rounded-2xl p-5 md:p-6">
+          {!analysis ? (
+            <UploadResume onUploaded={handleUploadResume} loading={loading} />
+          ) : (
             <Dashboard
               analysis={analysis}
               tasks={tasks}
+              timelineEvents={timelineEvents}
               onToggleTask={toggleTaskStatus}
               chatMessages={chatMessages}
               onChatSend={handleSendChat}
@@ -189,8 +229,8 @@ export default function Home() {
               mockQuestions={mockQuestions}
               mockLoading={mockLoading}
             />
-          </>
-        )}
+          )}
+        </div>
       </div>
     </main>
   );

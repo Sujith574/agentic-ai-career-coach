@@ -5,7 +5,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 
-from routes.auth import auth_bp
 from routes.chat import chat_bp
 from routes.resume import resume_bp
 from routes.tasks import tasks_bp
@@ -33,11 +32,30 @@ def create_app() -> Flask:
     app.register_blueprint(resume_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(chat_bp)
-    app.register_blueprint(auth_bp)
 
     @app.route("/health", methods=["GET"])
     def health():
         return jsonify({"status": "ok", "service": "Agentic AI Career Coach API"}), 200
+
+    @app.route("/", methods=["GET"])
+    def root():
+        return (
+            jsonify(
+                {
+                    "service": "Agentic AI Career Coach API",
+                    "status": "running",
+                    "endpoints": {
+                        "health": "/health",
+                        "upload_resume": "POST /upload-resume",
+                        "generate_tasks": "POST /generate-tasks",
+                        "chat": "POST /chat",
+                        "mock_interview": "GET /mock-interview",
+                        "agent_timeline": "GET /agent-timeline",
+                    },
+                }
+            ),
+            200,
+        )
 
     return app
 
