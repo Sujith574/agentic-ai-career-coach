@@ -13,12 +13,12 @@ import { cn } from "../ui/Base";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", roles: ["student", "admin", "org_owner"] },
-  { icon: FileText, label: "Resume Analysis", path: "/resume", roles: ["student"] },
-  { icon: Target, label: "Mock Interview", path: "/interview", roles: ["student"] },
-  { icon: MessageSquare, label: "AI Mentor", path: "/chat", roles: ["student"] },
-  { icon: Briefcase, label: "Job Tracker", path: "/jobs", roles: ["student"] },
-  { icon: CreditCard, label: "Billing", path: "/billing", roles: ["org_owner", "admin"] },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["student", "admin", "org_owner"] },
+  { icon: FileText, label: "Resume Analysis", path: "/dashboard", roles: ["student"] },
+  { icon: Target, label: "Mock Interview", path: "/dashboard", roles: ["student"] },
+  { icon: MessageSquare, label: "AI Mentor", path: "/dashboard", roles: ["student"] },
+  { icon: Briefcase, label: "Job Tracker", path: "/dashboard", roles: ["student"] },
+  { icon: CreditCard, label: "Billing", path: "/billing", roles: ["student", "org_owner", "admin"] },
+  { icon: Settings, label: "Settings", path: "/dashboard", roles: ["student", "admin", "org_owner"] },
 ];
 
 export function Sidebar({ role }) {
