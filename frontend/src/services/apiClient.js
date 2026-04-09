@@ -33,8 +33,16 @@ export async function apiRequest(path, options = {}, config = {}) {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+
+      if (response.status === 401 && !path.includes("/auth/login")) {
+        localStorage.removeItem(AUTH_KEY);
+        window.location.href = "/login";
+        throw new Error("Unauthorized. Please login again.");
+      }
+
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Request failed: ${response.status}`);
       }
       return await response.json();
     } catch (error) {

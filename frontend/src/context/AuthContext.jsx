@@ -1,86 +1,66 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { apiRequest } from "../services/apiClient";
 
 const AuthContext = createContext(null);
-
-const STORAGE_KEY = "agentic_saas_auth";
+const AUTH_KEY = "agentic_saas_auth";
 
 export function AuthProvider({ children }) {
-  const [auth, setAuth] = useState(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (auth) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
+    const authRaw = localStorage.getItem(AUTH_KEY);
+    if (authRaw) {
+      try {
+        const auth = JSON.parse(authRaw);
+        setUser(auth.user);
+      } catch (err) {
+        localStorage.removeItem(AUTH_KEY);
+      }
     }
-  }, [auth]);
+    setLoading(false);
+  }, []);
 
-  const value = useMemo(
-    () => ({
-      auth,
-      isAuthenticated: Boolean(auth?.accessToken),
-      role: auth?.role || "guest",
-      orgId: auth?.organization?.id || "",
-      async login(email, password) {
-        const data = await apiRequest("/api/v1/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!data.ok) throw new Error(data.message || "Login failed");
-        setAuth({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          user: data.user,
-          role: data.role,
-          organization: data.organization,
-        });
-        return data;
-      },
-      async register(name, email, password, orgName) {
-        const data = await apiRequest("/api/v1/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, org_name: orgName || undefined }),
-        });
-        if (!data.ok) throw new Error(data.message || "Registration failed");
-        setAuth({
-          accessToken: data.access_token,
-          refreshToken: data.refresh_token,
-          user: data.user,
-          role: data.role,
-          organization: data.organization,
-        });
-        return data;
-      },
-      async logout() {
-        try {
-          if (auth?.refreshToken) {
-            await apiRequest("/api/v1/auth/logout", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refresh_token: auth.refreshToken }),
-            });
-          }
-        } catch {
-          // no-op, local logout still succeeds
-        }
-        setAuth(null);
-      },
-    }),
-    [auth]
+  const login = async (email, password) => {
+    const result = await apiRequest("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (result.ok) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(result));
+      setUser(result.user);
+      return { success: true };
+    }
+    return { success: false, message: result.message || "Login failed" };
+  };
+
+  const register = async (name, email, password, orgName) => {
+    const result = await apiRequest("/api/v1/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password, org_name: orgName }),
+    });
+
+    if (result.ok) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(result));
+      setUser(result.user);
+      return { success: true };
+    }
+    return { success: false, message: result.message || "Registration failed" };
+  };
+
+  const logout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
-}
-
+export const useAuth = () => useContext(AuthContext);
