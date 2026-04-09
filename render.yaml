@@ -22,7 +22,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://agentic-ai-career-coach-backend.onrender.com
+        sync: false
     routes:
       - type: rewrite
         source: /*

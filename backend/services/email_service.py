@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 class EmailService:
     def __init__(self, sender_email=None, sender_password=None):
         self.smtp_server = "smtp.gmail.com"
-        self.smtp_port = 465  # For SSL
+        self.smtp_port = 587  # Port for STARTTLS
         self.sender_email = sender_email or os.getenv("SENDER_EMAIL", "sujithlavudu@gmail.com")
         self.sender_password = sender_password or os.getenv("SENDER_PASSWORD", "otct iwsg bqbd ctqh")
 
@@ -46,12 +46,16 @@ class EmailService:
 
         context = ssl.create_default_context()
         try:
-            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context) as server:
+            print(f"DEBUG: Attempting to send email to {receiver_email} via {self.smtp_server}:{self.smtp_port}")
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.set_debuglevel(1)
+                server.starttls(context=context)
                 server.login(self.sender_email, self.sender_password)
                 server.sendmail(self.sender_email, receiver_email, message.as_string())
+            print(f"DEBUG: Email sent successfully to {receiver_email}")
             return True
         except Exception as e:
-            print(f"Failed to send email: {e}")
+            print(f"CRITICAL ERROR in EmailService: {e}")
             return False
 
 def generate_otp():

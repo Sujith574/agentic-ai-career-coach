@@ -206,9 +206,12 @@ class PlatformStore:
         users = self._find("users", {"email": "owner@agentic.local"})
         if users:
             return users[0]
+        # Hash 'demo-owner' using the same logic as AuthV2Service (SHA256)
+        import hashlib
+        demo_hash = hashlib.sha256("demo-owner".encode("utf-8")).hexdigest()
         user = self._insert(
             "users",
-            {"email": "owner@agentic.local", "name": "Org Owner", "password_hash": "demo-owner"},
+            {"email": "owner@agentic.local", "name": "Org Owner", "password_hash": demo_hash},
         )
         self._insert("memberships", {"org_id": org_id, "user_id": user["id"], "role": "org_owner"})
         return user
