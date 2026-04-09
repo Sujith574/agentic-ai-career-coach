@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, JSON, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, JSON, Enum as SQLEnum, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from .db.base import Base, TimestampMixin
@@ -24,9 +24,12 @@ class User(Base, TimestampMixin):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=True) # Optional for OTP-only flow
     name = Column(String, nullable=True)
     role = Column(SQLEnum(UserRole), default=UserRole.STUDENT)
+    
+    otp = Column(String, nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
     
     org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     organization = relationship("Organization", back_populates="users")

@@ -23,6 +23,13 @@ class UserInDB(UserBase):
         from_attributes = True
 
 # Token schemas
+class EmailRequest(BaseModel):
+    email: str
+
+class OTPVerify(BaseModel):
+    email: str
+    otp: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
