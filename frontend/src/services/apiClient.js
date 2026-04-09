@@ -1,5 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const AUTH_KEY = "agentic_saas_auth";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const AUTH_KEY = "career_os_auth";
 
 const DEFAULT_TIMEOUT_MS = 20000;
 
