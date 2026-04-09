@@ -1,21 +1,21 @@
 services:
   - type: web
-    name: agentic-ai-career-coach-backend
+    name: agentic-ai-careeros-backend
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn "app:create_app()" --bind 0.0.0.0:$PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: GROQ_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
-      - key: GROQ_MODEL
-        value: llama-3.1-8b-instant
-      - key: MONGODB_URI
+      - key: DATABASE_URL
         sync: false
-      - key: MONGODB_DB
-        value: agentic_ai_career_coach
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "*"
   - type: static
-    name: agentic-ai-career-coach-frontend
+    name: agentic-ai-careeros-frontend
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build

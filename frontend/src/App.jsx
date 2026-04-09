@@ -2,21 +2,34 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { useAuth } from "./context/AuthContext";
 import Billing from "./pages/Billing";
 import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import MockInterview from "./pages/MockInterview";
 import Register from "./pages/Register";
 import ResetPassword from "./pages/ResetPassword";
 import ResumeAnalysis from "./pages/ResumeAnalysis";
+import { AppLayout } from "./components/layout/AppLayout";
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="flex h-screen items-center justify-center text-white">Loading...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center bg-slate-950"><div className="animate-pulse text-indigo-400 font-black tracking-widest">LOADING.SYSTEM_KERNEL</div></div>;
   if (!user) return <Navigate to="/login" />;
+  
+  if (role && user.role !== role) {
+    return <Navigate to="/dashboard" />;
+  }
+  
   return children;
 }
 
-import { AppLayout } from "./components/layout/AppLayout";
+function DashboardDecider() {
+  const { user } = useAuth();
+  if (user?.role === "admin" || user?.role === "org_owner") {
+    return <AdminDashboard />;
+  }
+  return <Dashboard />;
+}
 
 export default function App() {
   return (
@@ -33,7 +46,7 @@ export default function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardDecider />
               </ProtectedRoute>
             } 
           />
