@@ -7,6 +7,7 @@ from .. import models, schemas
 from ..db.session import get_db
 from ..core import security
 from ..services.mail_service import send_otp_email, generate_otp
+from ..services.agent_service import CareerAgent, log_activity
 
 router = APIRouter()
 
@@ -78,6 +79,11 @@ def verify_otp(
     user.otp = None
     user.otp_expires_at = None
     db.commit()
+
+    # Trigger Agent Cycle
+    agent = CareerAgent(db, str(user.id))
+    agent.run_cycle()
+    log_activity(db, str(user.id), "login")
 
     # Create token
     access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)

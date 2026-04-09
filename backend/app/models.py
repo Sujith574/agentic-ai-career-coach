@@ -72,3 +72,29 @@ class ChatHistory(Base, TimestampMixin):
     message = Column(String, nullable=False)
     response = Column(String, nullable=False)
     context_snapshot = Column(JSON, nullable=True)
+
+class UserActivity(Base, TimestampMixin):
+    __tablename__ = "user_activity"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    activity_type = Column(String, nullable=False) # login, upload, complete_task, chat
+    meta_data = Column(JSON, nullable=True)
+
+class AgentLog(Base, TimestampMixin):
+    __tablename__ = "agent_logs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
+    event = Column(String, nullable=False) # cycle_trigger, state_update
+    details = Column(JSON, nullable=True)
+
+class DecisionHistory(Base, TimestampMixin):
+    __tablename__ = "decision_history"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    state_snapshot = Column(JSON, nullable=False)
+    decisions = Column(JSON, nullable=False)
+    executed = Column(Boolean, default=False)

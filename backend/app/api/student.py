@@ -7,6 +7,7 @@ from .. import models, schemas
 from ..db.session import get_db
 from ..services.ai_service import AIService
 from ..services.agent_logic import run_agentic_rules
+from ..services.agent_service import CareerAgent, log_activity
 
 router = APIRouter()
 ai_service = AIService()
@@ -51,7 +52,33 @@ async def upload_resume(
     # Trigger Agentic Core
     run_agentic_rules(db, profile.id, current_user.org_id, analysis)
     
+    # Run Autonomous Agent Cycle
+    agent = CareerAgent(db, str(current_user.id))
+    agent.run_cycle()
+    log_activity(db, str(current_user.id), "resume_upload")
+    
     return {"ok": True, "analysis": analysis}
+
+@router.put("/tasks/{task_id}")
+def update_task(
+    task_id: str,
+    status_update: dict,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task.status = status_update.get("status", task.status)
+    db.commit()
+    
+    # Trigger Agent Cycle
+    agent = CareerAgent(db, str(current_user.id))
+    agent.run_cycle()
+    log_activity(db, str(current_user.id), "complete_task", {"task_id": task_id})
+    
+    return {"status": "ok"}
 
 @router.get("/tasks", response_model=List[schemas.TaskInDB])
 def get_tasks(
@@ -101,5 +128,7 @@ def career_chat(
     )
     db.add(chat)
     db.commit()
+    
+    log_activity(db, str(current_user.id), "chat_message")
     
     return {"text": response_text}
