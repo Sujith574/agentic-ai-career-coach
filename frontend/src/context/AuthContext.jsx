@@ -36,11 +36,20 @@ export function AuthProvider({ children }) {
     return { success: false, message: result.message || "Login failed" };
   };
 
-  const register = async (name, email, password, orgName) => {
-    const result = await apiRequest("/api/v1/auth/register", {
+  const registerStart = async (name, email) => {
+    const result = await apiRequest("/api/v1/auth/register/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, org_name: orgName }),
+      body: JSON.stringify({ name, email }),
+    });
+    return result;
+  };
+
+  const registerComplete = async (name, email, password, otp, orgName) => {
+    const result = await apiRequest("/api/v1/auth/register/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password, otp, org_name: orgName }),
     });
 
     if (result.ok) {
@@ -48,7 +57,7 @@ export function AuthProvider({ children }) {
       setUser(result.user);
       return { success: true };
     }
-    return { success: false, message: result.message || "Registration failed" };
+    return { success: false, message: result.message || "Registration verification failed" };
   };
 
   const logout = () => {
@@ -57,7 +66,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, registerStart, registerComplete }}>
       {children}
     </AuthContext.Provider>
   );

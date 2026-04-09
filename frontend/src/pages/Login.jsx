@@ -78,7 +78,12 @@ export default function Login() {
               </div>
               
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-500 uppercase tracking-widest px-1">Password</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-xs font-medium text-slate-500 uppercase tracking-widest">Password</label>
+                  <Link to="/reset-password" className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 uppercase tracking-wider">
+                    Forgot?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                   <Input

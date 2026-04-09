@@ -47,7 +47,12 @@ def create_app() -> Flask:
     app.store = PlatformStore(app.db, postgres_dsn=settings.postgres_dsn)
     default_org = app.store.ensure_default_org()
     app.store.ensure_default_owner(default_org["id"])
-    app.auth_v2 = AuthV2Service(app.store, settings.jwt_secret)
+    app.auth_v2 = AuthV2Service(
+        app.store,
+        settings.jwt_secret,
+        sender_email=settings.sender_email,
+        sender_password=settings.sender_password,
+    )
     app.billing = BillingService(app.store)
     app.queue = QueueService(app.store, redis_url=settings.redis_url, queue_name=settings.queue_name)
     app.saas_demo = SaaSDemoService()

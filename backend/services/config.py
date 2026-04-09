@@ -26,6 +26,8 @@ class Settings:
     queue_name: str
     stripe_api_key: str
     stripe_webhook_secret: str
+    sender_email: str
+    sender_password: str
 
 
 def load_settings() -> Settings:
@@ -45,5 +47,7 @@ def load_settings() -> Settings:
         queue_name=os.getenv("QUEUE_NAME", "agentic_jobs"),
         stripe_api_key=os.getenv("STRIPE_API_KEY", ""),
         stripe_webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET", ""),
+        sender_email=os.getenv("SENDER_EMAIL", "sujithlavudu@gmail.com"),
+        sender_password=os.getenv("SENDER_PASSWORD", "otct iwsg bqbd ctqh"),
     )
 

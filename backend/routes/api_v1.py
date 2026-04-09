@@ -35,14 +35,29 @@ def auth_required(func):
     return wrapper
 
 
-@api_v1_bp.route("/auth/register", methods=["POST"])
-def register():
+@api_v1_bp.route("/auth/register/start", methods=["POST"])
+def register_start():
     payload = request.get_json(silent=True) or {}
-    ok, msg = validate_required_fields(payload, ["email", "password", "name"])
+    ok, msg = validate_required_fields(payload, ["email", "name"])
     if not ok:
         return jsonify({"ok": False, "message": msg}), 400
-    result = current_app.auth_v2.register(
+    result = current_app.auth_v2.register_request_otp(
         email=payload["email"],
+        name=payload["name"]
+    )
+    status = 200 if result.get("ok") else 400
+    return jsonify(result), status
+
+
+@api_v1_bp.route("/auth/register/complete", methods=["POST"])
+def register_complete():
+    payload = request.get_json(silent=True) or {}
+    ok, msg = validate_required_fields(payload, ["email", "otp", "password", "name"])
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 400
+    result = current_app.auth_v2.register_confirm(
+        email=payload["email"],
+        otp=payload["otp"],
         password=payload["password"],
         name=payload["name"],
         org_name=payload.get("org_name"),
@@ -80,6 +95,27 @@ def logout():
     payload = request.get_json(silent=True) or {}
     token = payload.get("refresh_token", "")
     return jsonify(current_app.auth_v2.logout(refresh_token=token)), 200
+
+
+@api_v1_bp.route("/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    payload = request.get_json(silent=True) or {}
+    ok, msg = validate_required_fields(payload, ["email"])
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 400
+    result = current_app.auth_v2.request_password_reset(payload["email"])
+    return jsonify(result), 200
+
+
+@api_v1_bp.route("/auth/reset-password", methods=["POST"])
+def reset_password():
+    payload = request.get_json(silent=True) or {}
+    ok, msg = validate_required_fields(payload, ["email", "otp", "password"])
+    if not ok:
+        return jsonify({"ok": False, "message": msg}), 400
+    result = current_app.auth_v2.reset_password(payload["email"], payload["otp"], payload["password"])
+    status = 200 if result.get("ok") else 400
+    return jsonify(result), status
 
 
 @api_v1_bp.route("/resume/upload", methods=["POST"])
