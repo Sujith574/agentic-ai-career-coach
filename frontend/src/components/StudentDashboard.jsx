@@ -1,7 +1,8 @@
-import Alerts from "./Alerts";
 import AgentTimeline from "./AgentTimeline";
+import Alerts from "./Alerts";
 import ChatBox from "./ChatBox";
 import TaskList from "./TaskList";
+import UploadResume from "./UploadResume";
 
 function ProgressBar({ value }) {
   return (
@@ -9,7 +10,7 @@ function ProgressBar({ value }) {
       <div className="h-4 w-full overflow-hidden rounded-full bg-slate-800/80">
         <div
           className={`h-full rounded-full transition-all ${
-            value >= 70
+            value >= 80
               ? "bg-gradient-to-r from-emerald-500 to-lime-400"
               : value >= 50
               ? "bg-gradient-to-r from-amber-500 to-yellow-400"
@@ -24,20 +25,24 @@ function ProgressBar({ value }) {
   );
 }
 
-export default function Dashboard({
+export default function StudentDashboard({
   analysis,
   tasks,
-  onToggleTask,
-  chatMessages,
-  onChatSend,
-  chatLoading,
-  onStartMockInterview,
-  mockQuestions,
-  mockLoading,
   timelineEvents,
-  subscription,
-  usage,
+  chatMessages,
+  chatLoading,
+  mockLoading,
+  mockQuestions,
+  loading,
+  onUploadResume,
+  onToggleTask,
+  onSendChat,
+  onStartMockInterview,
 }) {
+  if (!analysis) {
+    return <UploadResume onUploaded={onUploadResume} loading={loading} />;
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-2xl border border-indigo-400/20 bg-slate-900/70 p-6">
@@ -55,8 +60,7 @@ export default function Dashboard({
           <h3 className="text-lg font-semibold text-white">Resume Summary</h3>
           <div className="mt-3 space-y-3 text-sm">
             <p className="text-slate-300">
-              <span className="font-medium text-white">Experience:</span>{" "}
-              {analysis.experience_level || "Beginner"}
+              <span className="font-medium text-white">Experience:</span> {analysis.experience_level || "Beginner"}
             </p>
             <p className="text-slate-300">
               <span className="font-medium text-white">Projects:</span> {analysis.projects || 0}
@@ -69,10 +73,7 @@ export default function Dashboard({
               <p className="font-medium text-white">Skills Detected</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(analysis.skills || []).map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-full bg-emerald-500/20 px-2 py-1 text-xs text-emerald-300"
-                  >
+                  <span key={skill} className="rounded-full bg-emerald-500/20 px-2 py-1 text-xs text-emerald-300">
                     {skill}
                   </span>
                 ))}
@@ -82,10 +83,7 @@ export default function Dashboard({
               <p className="font-medium text-white">Skill Gaps</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(analysis.missing_skills || []).map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-full bg-rose-500/20 px-2 py-1 text-xs text-rose-300"
-                  >
+                  <span key={skill} className="rounded-full bg-rose-500/20 px-2 py-1 text-xs text-rose-300">
                     {skill}
                   </span>
                 ))}
@@ -93,32 +91,12 @@ export default function Dashboard({
             </div>
           </div>
         </div>
-
         <TaskList tasks={tasks} onToggleTask={onToggleTask} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <ChatBox messages={chatMessages} onSend={onChatSend} loading={chatLoading} />
+        <ChatBox messages={chatMessages} onSend={onSendChat} loading={chatLoading} />
         <div className="space-y-5">
-          <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">SaaS Plan & Usage</h3>
-              <span className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-200">
-                {subscription?.plan || "free"}
-              </span>
-            </div>
-            <div className="mt-3 space-y-2 text-xs text-slate-300">
-              {(usage || []).length === 0 ? (
-                <p>No usage recorded yet.</p>
-              ) : (
-                usage.map((item) => (
-                  <p key={`${item.metric}-${item.id}`}>
-                    {item.metric}: <span className="text-white">{item.value}</span>
-                  </p>
-                ))
-              )}
-            </div>
-          </div>
           <AgentTimeline events={timelineEvents} />
           <Alerts tasks={tasks} analysis={analysis} />
           <div className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5">
@@ -127,7 +105,7 @@ export default function Dashboard({
               <button
                 onClick={onStartMockInterview}
                 disabled={mockLoading}
-                className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-sm font-medium text-white hover:from-indigo-500 hover:to-violet-500 disabled:opacity-70"
+                className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-70"
               >
                 {mockLoading ? "Loading..." : "Start Mock Interview"}
               </button>
@@ -160,3 +138,4 @@ export default function Dashboard({
     </div>
   );
 }
+

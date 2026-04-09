@@ -4,10 +4,18 @@ import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+import json
+
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def json_dumps(value: dict[str, Any]) -> str:
+    return json.dumps(value, separators=(",", ":"), default=str)
 
 
 class PlatformStore:
@@ -16,8 +24,15 @@ class PlatformStore:
     in-memory fallback to keep demo and staging resilient.
     """
 
-    def __init__(self, mongo_db=None) -> None:
+    def __init__(self, mongo_db=None, postgres_dsn: str = "") -> None:
         self.mongo_db = mongo_db
+        self.postgres_pool: ConnectionPool | None = None
+        if postgres_dsn:
+            try:
+                self.postgres_pool = ConnectionPool(conninfo=postgres_dsn, open=True)
+                self._ensure_postgres_tables()
+            except Exception:
+                self.postgres_pool = None
         self._lock = threading.Lock()
         self._memory: dict[str, list[dict[str, Any]]] = {
             "organizations": [],
@@ -37,10 +52,96 @@ class PlatformStore:
             "audit_logs": [],
             "job_runs": [],
             "dead_letter_jobs": [],
+            "billing_events": [],
         }
+
+    def _ensure_postgres_tables(self) -> None:
+        if self.postgres_pool is None:
+            return
+        with self.postgres_pool.connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS saas_documents (
+                        id TEXT PRIMARY KEY,
+                        collection TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL,
+                        payload JSONB NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_saas_documents_collection
+                    ON saas_documents (collection);
+                    """
+                )
+            conn.commit()
+
+    def _postgres_insert(self, collection: str, row: dict[str, Any]) -> bool:
+        if self.postgres_pool is None:
+            return False
+        try:
+            with self.postgres_pool.connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO saas_documents (id, collection, created_at, payload)
+                        VALUES (%s, %s, %s, %s::jsonb)
+                        ON CONFLICT (id) DO NOTHING
+                        """,
+                        (row["id"], collection, row["created_at"], json_dumps(row)),
+                    )
+                conn.commit()
+            return True
+        except Exception:
+            return False
+
+    def _postgres_find(self, collection: str, filters: dict[str, Any]) -> list[dict[str, Any]] | None:
+        if self.postgres_pool is None:
+            return None
+        try:
+            clauses = []
+            params: list[Any] = [collection]
+            idx = 2
+            for key, value in filters.items():
+                clauses.append(f"payload ->> %s = %s")
+                params.append(key)
+                params.append(str(value))
+                idx += 2
+            where_extra = f" AND {' AND '.join(clauses)}" if clauses else ""
+            query = (
+                "SELECT payload FROM saas_documents WHERE collection = %s"
+                + where_extra
+                + " ORDER BY created_at ASC"
+            )
+            with self.postgres_pool.connection() as conn:
+                with conn.cursor(row_factory=dict_row) as cur:
+                    cur.execute(query, tuple(params))
+                    rows = cur.fetchall()
+            return [dict(row["payload"]) for row in rows]
+        except Exception:
+            return None
+
+    def _postgres_update(self, collection: str, row_id: str, updated_row: dict[str, Any]) -> bool:
+        if self.postgres_pool is None:
+            return False
+        try:
+            with self.postgres_pool.connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE saas_documents
+                        SET payload = %s::jsonb
+                        WHERE collection = %s AND id = %s
+                        """,
+                        (json_dumps(updated_row), collection, row_id),
+                    )
+                conn.commit()
+            return True
+        except Exception:
+            return False
 
     def _insert(self, collection: str, data: dict[str, Any]) -> dict[str, Any]:
         row = {"id": str(uuid.uuid4()), "created_at": _utc_now(), **data}
+        if self._postgres_insert(collection, row):
+            return row
         if self.mongo_db is not None:
             try:
                 self.mongo_db[collection].insert_one(row)
@@ -54,6 +155,9 @@ class PlatformStore:
 
     def _find(self, collection: str, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         filters = filters or {}
+        pg_rows = self._postgres_find(collection, filters)
+        if pg_rows is not None:
+            return pg_rows
         if self.mongo_db is not None:
             try:
                 return list(self.mongo_db[collection].find(filters, {"_id": 0}))
@@ -62,6 +166,27 @@ class PlatformStore:
         with self._lock:
             rows = self._memory.get(collection, [])
             return [row for row in rows if all(row.get(k) == v for k, v in filters.items())]
+
+    def _update_by_id(self, collection: str, row_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+        rows = self._find(collection, {"id": row_id})
+        if not rows:
+            return None
+        row = {**rows[0], **updates}
+        if self._postgres_update(collection, row_id, row):
+            return row
+        if self.mongo_db is not None:
+            try:
+                self.mongo_db[collection].update_one({"id": row_id}, {"$set": updates})
+                return row
+            except Exception:
+                pass
+        with self._lock:
+            source = self._memory.get(collection, [])
+            for idx, item in enumerate(source):
+                if item.get("id") == row_id:
+                    source[idx] = row
+                    break
+        return row
 
     def log_audit(
         self, *, org_id: str, user_id: str | None, action: str, meta: dict[str, Any] | None = None
@@ -162,30 +287,18 @@ class PlatformStore:
         return rows[-1] if rows else None
 
     def increment_usage(self, org_id: str, metric: str, amount: int = 1) -> dict[str, Any]:
-        if self.mongo_db is not None:
-            try:
-                self.mongo_db["usage_counters"].update_one(
-                    {"org_id": org_id, "metric": metric},
-                    {"$inc": {"value": amount}, "$set": {"updated_at": _utc_now()}},
-                    upsert=True,
-                )
-                rows = list(
-                    self.mongo_db["usage_counters"].find({"org_id": org_id, "metric": metric}, {"_id": 0})
-                )
-                return rows[0] if rows else {"org_id": org_id, "metric": metric, "value": amount}
-            except Exception:
-                pass
-
-        with self._lock:
-            rows = self._memory["usage_counters"]
-            for row in rows:
-                if row.get("org_id") == org_id and row.get("metric") == metric:
-                    row["value"] = int(row.get("value", 0)) + amount
-                    row["updated_at"] = _utc_now()
-                    return row
-            new_row = {"id": str(uuid.uuid4()), "org_id": org_id, "metric": metric, "value": amount}
-            rows.append(new_row)
-            return new_row
+        rows = self._find("usage_counters", {"org_id": org_id, "metric": metric})
+        if rows:
+            row = rows[0]
+            value = int(row.get("value", 0)) + amount
+            updated = self._update_by_id(
+                "usage_counters", row["id"], {"value": value, "updated_at": _utc_now()}
+            )
+            return updated or {"org_id": org_id, "metric": metric, "value": value}
+        return self._insert(
+            "usage_counters",
+            {"org_id": org_id, "metric": metric, "value": amount, "updated_at": _utc_now()},
+        )
 
     def list_usage(self, org_id: str) -> list[dict[str, Any]]:
         return self._find("usage_counters", {"org_id": org_id})

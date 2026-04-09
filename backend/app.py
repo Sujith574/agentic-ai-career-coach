@@ -6,6 +6,7 @@ from flask_cors import CORS
 from pymongo import MongoClient
 
 from routes.api_v1 import api_v1_bp
+from routes.admin import admin_bp
 from routes.auth import auth_bp
 from routes.chat import chat_bp
 from routes.resume import resume_bp
@@ -17,6 +18,8 @@ from services.observability import setup_observability
 from services.platform_store import PlatformStore
 from services.queue_service import QueueService
 from services.security import setup_request_guardrails
+from services.saas_demo_service import SaaSDemoService
+import stripe
 
 load_dotenv()
 
@@ -41,12 +44,15 @@ def create_app() -> Flask:
         except Exception as error:
             app.logger.warning(f"MongoDB unavailable, continuing without DB: {error}")
 
-    app.store = PlatformStore(app.db)
+    app.store = PlatformStore(app.db, postgres_dsn=settings.postgres_dsn)
     default_org = app.store.ensure_default_org()
     app.store.ensure_default_owner(default_org["id"])
     app.auth_v2 = AuthV2Service(app.store, settings.jwt_secret)
     app.billing = BillingService(app.store)
-    app.queue = QueueService(app.store)
+    app.queue = QueueService(app.store, redis_url=settings.redis_url, queue_name=settings.queue_name)
+    app.saas_demo = SaaSDemoService()
+    if settings.stripe_api_key:
+        stripe.api_key = settings.stripe_api_key
 
     setup_request_guardrails(app, per_minute=settings.rate_limit_per_minute)
     setup_observability(app)
@@ -54,6 +60,7 @@ def create_app() -> Flask:
     app.register_blueprint(resume_bp)
     app.register_blueprint(tasks_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_v1_bp)
 

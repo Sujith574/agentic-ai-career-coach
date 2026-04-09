@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import AuthGate from "../components/AuthGate";
-import Dashboard from "../components/Dashboard";
-import UploadResume from "../components/UploadResume";
-import { useAuth } from "../context/AuthContext";
+import AdminDashboard from "../components/AdminDashboard";
+import SidebarNav from "../components/SidebarNav";
+import StudentDashboard from "../components/StudentDashboard";
 import { apiRequest } from "../services/apiClient";
 
 const demoResume = {
@@ -16,17 +15,19 @@ const demoResume = {
 };
 
 export default function Home() {
-  const { role, logout } = useAuth();
+  const initialTab = window.location.pathname.includes("admin-dashboard") ? "admin" : "student";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [analysis, setAnalysis] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
-  const [subscription, setSubscription] = useState(null);
-  const [usage, setUsage] = useState([]);
   const [loading, setLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [mockLoading, setMockLoading] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [mockQuestions, setMockQuestions] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [insights, setInsights] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     if (!analysis) return undefined;
@@ -79,21 +80,31 @@ export default function Home() {
 
     try {
       const data = await apiRequest(
-        "/api/v1/tasks/generate",
+        "/generate-tasks",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ analysis: resumeData }),
+          body: JSON.stringify({ resume: resumeData }),
         },
         { retries: 1, timeoutMs: 15000 }
       );
-      setTasks(data.tasks || []);
+      const generatedTasks = data || [];
+      setTasks(generatedTasks);
       try {
-        const timeline = await apiRequest("/api/v1/timeline", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
-        setTimelineEvents(timeline.events || []);
+        await apiRequest(
+          "/admin/sync-current-student",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ analysis: resumeData, tasks: generatedTasks }),
+          },
+          { retries: 0, timeoutMs: 10000 }
+        );
+        await loadAdminData();
       } catch {
-        setTimelineEvents(fallbackTimeline);
+        // Keep student flow resilient even if admin sync fails.
       }
+      setTimelineEvents(fallbackTimeline);
     } catch {
       setTasks([
         { title: "Solve 10 DSA problems daily", priority: "High", status: "Pending" },
@@ -117,15 +128,15 @@ export default function Home() {
       }
 
       const data = await apiRequest(
-        "/api/v1/resume/upload",
+        "/upload-resume",
         {
           method: "POST",
           body: formData,
         },
         { retries: 1, timeoutMs: 30000 }
       );
-      setAnalysis(data.analysis || demoResume);
-      await runTaskGeneration(data.analysis || demoResume);
+      setAnalysis(data || demoResume);
+      await runTaskGeneration(data || demoResume);
     } catch {
       if (setError) {
         setError("Resume processing failed. Showing demo data.");
@@ -143,7 +154,7 @@ export default function Home() {
     setChatLoading(true);
     try {
       const data = await apiRequest(
-        "/api/v1/chat",
+        "/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -170,9 +181,9 @@ export default function Home() {
     setMockLoading(true);
     try {
       const profile = encodeURIComponent(JSON.stringify(analysis || demoResume));
-      let data = await apiRequest("/api/v1/mock-interview", { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+      let data = await apiRequest("/mock-interview", { method: "GET" }, { retries: 1, timeoutMs: 15000 });
       if (!data?.technical?.length || !data?.hr?.length) {
-        data = await apiRequest(`/api/v1/mock-interview?profile=${profile}`, { method: "GET" }, { retries: 1, timeoutMs: 15000 });
+        data = await apiRequest(`/mock-interview?profile=${profile}`, { method: "GET" }, { retries: 1, timeoutMs: 15000 });
       }
       setMockQuestions(data);
     } catch {
@@ -192,19 +203,25 @@ export default function Home() {
     }
   };
 
-  const loadBilling = async () => {
+  const loadAdminData = async () => {
     try {
-      const data = await apiRequest("/api/v1/billing/subscription", { method: "GET" }, { retries: 0, timeoutMs: 10000 });
-      setSubscription(data.subscription || null);
-      setUsage(data.usage || []);
+      const [studentData, insightData] = await Promise.all([
+        apiRequest("/admin/students", { method: "GET" }, { retries: 0, timeoutMs: 10000 }),
+        apiRequest("/admin/insights", { method: "GET" }, { retries: 0, timeoutMs: 10000 }),
+      ]);
+      setStudents(studentData.students || []);
+      setInsights(insightData);
+      if (!selectedStudent && studentData.students?.length) {
+        setSelectedStudent(studentData.students[0]);
+      }
     } catch {
-      setSubscription(null);
-      setUsage([]);
+      setStudents([]);
+      setInsights(null);
     }
   };
 
   useEffect(() => {
-    loadBilling();
+    loadAdminData();
   }, []);
 
   const toggleTaskStatus = (idx) => {
@@ -217,54 +234,66 @@ export default function Home() {
     );
   };
 
+  const navigate = (item) => {
+    setActiveTab(item.id);
+    window.history.replaceState({}, "", item.path);
+  };
+
+  const pageTitle = useMemo(
+    () =>
+      activeTab === "student"
+        ? "Student Dashboard - Personal AI Career Mentor"
+        : "Admin Dashboard - TPC Placement Intelligence",
+    [activeTab]
+  );
+
   return (
-    <AuthGate>
-      <main className="app-bg min-h-screen text-slate-100">
+    <main className="app-bg min-h-screen text-slate-100">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <header className="mb-8 flex flex-col gap-4 rounded-2xl border border-blue-400/20 bg-slate-950/50 p-6 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
-              Hackathon Edition
+              SaaS Edition
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Agentic AI Career Coach</h1>
+            <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Agentic AI CareerOS</h1>
+            <p className="mt-1 text-xs text-slate-400">AI Placement Operating System for Universities</p>
             <p className="mt-2 text-sm text-slate-300">{headerSubtitle}</p>
-            <p className="mt-1 text-xs text-slate-400">Role: {role}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
-              Autonomous Analyze {"->"} Decide {"->"} Act
-            </span>
-            <button
-              onClick={logout}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200"
-            >
-              Logout
-            </button>
-          </div>
+          <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            Autonomous Analyze {"->"} Decide {"->"} Act
+          </span>
         </header>
 
-        <div className="glass-card rounded-2xl p-5 md:p-6">
-          {!analysis ? (
-            <UploadResume onUploaded={handleUploadResume} loading={loading} />
-          ) : (
-            <Dashboard
-              analysis={analysis}
-              tasks={tasks}
-              timelineEvents={timelineEvents}
-              subscription={subscription}
-              usage={usage}
-              onToggleTask={toggleTaskStatus}
-              chatMessages={chatMessages}
-              onChatSend={handleSendChat}
-              chatLoading={chatLoading}
-              onStartMockInterview={startMockInterview}
-              mockQuestions={mockQuestions}
-              mockLoading={mockLoading}
-            />
-          )}
+        <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
+          <SidebarNav current={activeTab} onNavigate={navigate} />
+          <section className="glass-card rounded-2xl p-5 md:p-6">
+            <h2 className="mb-4 text-lg font-semibold text-white">{pageTitle}</h2>
+            {activeTab === "student" ? (
+              <StudentDashboard
+                analysis={analysis}
+                tasks={tasks}
+                timelineEvents={timelineEvents}
+                chatMessages={chatMessages}
+                chatLoading={chatLoading}
+                mockLoading={mockLoading}
+                mockQuestions={mockQuestions}
+                loading={loading}
+                onUploadResume={handleUploadResume}
+                onToggleTask={toggleTaskStatus}
+                onSendChat={handleSendChat}
+                onStartMockInterview={startMockInterview}
+              />
+            ) : (
+              <AdminDashboard
+                insights={insights}
+                students={students}
+                selectedStudent={selectedStudent}
+                onSelectStudent={setSelectedStudent}
+              />
+            )}
+          </section>
         </div>
       </div>
-      </main>
-    </AuthGate>
+    </main>
   );
 }

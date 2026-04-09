@@ -21,6 +21,11 @@ class Settings:
     rate_limit_per_minute: int
     enable_enterprise: bool
     enable_billing: bool
+    postgres_dsn: str
+    redis_url: str
+    queue_name: str
+    stripe_api_key: str
+    stripe_webhook_secret: str
 
 
 def load_settings() -> Settings:
@@ -35,5 +40,10 @@ def load_settings() -> Settings:
         rate_limit_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "120")),
         enable_enterprise=_bool_env("ENABLE_ENTERPRISE", True),
         enable_billing=_bool_env("ENABLE_BILLING", True),
+        postgres_dsn=os.getenv("POSTGRES_DSN", ""),
+        redis_url=os.getenv("REDIS_URL", ""),
+        queue_name=os.getenv("QUEUE_NAME", "agentic_jobs"),
+        stripe_api_key=os.getenv("STRIPE_API_KEY", ""),
+        stripe_webhook_secret=os.getenv("STRIPE_WEBHOOK_SECRET", ""),
     )
 

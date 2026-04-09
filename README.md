@@ -1,11 +1,14 @@
-# Agentic AI Career Coach
+# Agentic AI Career Coach (SaaS Edition)
 
-Full-stack hackathon app with:
+Full-stack SaaS-ready app with:
 - React + Tailwind frontend
-- Flask backend APIs
-- Groq integration for resume/chat/mock interview
-- MongoDB integration with graceful fallback
-- OTP-based email login
+- Flask backend with `/api/v1` multi-tenant APIs
+- Role-based auth (org owner/admin/mentor/student/recruiter)
+- Billing + usage limits scaffolding
+- Admin and enterprise endpoints (SSO metadata, SCIM, exports)
+- Observability (`/metrics`) + health/readiness checks
+- MongoDB persistence with in-memory fallback
+- SQL migration schema baseline for PostgreSQL rollout
 
 ## Project Structure
 
@@ -35,7 +38,7 @@ frontend/
 
 ## Run Locally
 
-### 1) Backend
+### 1) Backend (API)
 
 ```bash
 cd backend
@@ -47,6 +50,10 @@ python app.py
 ```
 
 Backend runs on `http://localhost:5000`.
+
+Seed login available after first run:
+- Email: `owner@agentic.local`
+- Password: `demo-owner`
 
 ### 2) Frontend
 
@@ -62,17 +69,67 @@ Frontend runs on `http://localhost:5173`.
 ## Environment Variables
 
 Backend `.env`:
-- `GROQ_API_KEY`
-- `GROQ_MODEL` (default: `llama-3.1-8b-instant`)
-- `GROQ_BASE_URL` (default: `https://api.groq.com/openai/v1`)
-- `MONGODB_URI`
-- `MONGODB_DB`
+- `APP_ENV`
 - `PORT`
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
-- `OTP_EXPIRY_MINUTES`
+- `MONGODB_URI`, `MONGODB_DB`
+- `OPENAI_API_KEY` or `GROQ_API_KEY`
+- `OPENAI_MODEL`, `OPENAI_BASE_URL` (optional)
+- `GROQ_MODEL`, `GROQ_BASE_URL` (optional)
+- `JWT_SECRET`
+- `MAX_UPLOAD_SIZE_MB`
+- `RATE_LIMIT_PER_MINUTE`
+- `CORS_ORIGINS`
+- `ENABLE_BILLING`
+- `ENABLE_ENTERPRISE`
+- `POSTGRES_DSN` (enables Postgres runtime persistence)
+- `REDIS_URL` (enables Redis/RQ distributed queue)
+- `QUEUE_NAME` (default `agentic_jobs`)
+- `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET` (verified Stripe webhooks)
 
 Frontend `.env`:
 - `VITE_API_URL` (local default `http://localhost:5000`)
+
+## API Highlights
+
+Legacy demo endpoints still supported:
+- `POST /upload-resume`
+- `POST /generate-tasks`
+- `POST /chat`
+- `GET /mock-interview`
+
+SaaS API v1:
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `POST /api/v1/resume/upload`
+- `POST /api/v1/tasks/generate`
+- `POST /api/v1/chat`
+- `GET /api/v1/mock-interview`
+- `GET /api/v1/timeline`
+- `GET /api/v1/alerts`
+- `GET /api/v1/billing/subscription`
+- `POST /api/v1/billing/upgrade`
+- `POST /api/v1/billing/webhook/stripe`
+- `GET /api/v1/admin/tenants`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/jobs`
+- `POST /api/v1/admin/replay-job`
+- `GET /api/v1/enterprise/sso/metadata`
+- `POST /api/v1/enterprise/scim/users`
+- `GET /api/v1/enterprise/export`
+- `GET /api/v1/enterprise/audit-logs`
+
+## Worker Runtime (Production)
+
+Start a queue worker service:
+
+```bash
+cd backend
+python worker.py
+```
+
+Requires `REDIS_URL` to be configured.
 
 ## Deployment (Suggested)
 
