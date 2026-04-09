@@ -45,7 +45,7 @@ export default function MockInterview() {
     setSession("preparing");
     setError("");
     try {
-      const res = await apiRequest("/api/v1/mock-interview", { method: "GET" });
+      const res = await apiRequest("/api/v1/student/mock-interview", { method: "GET" });
       setTimeout(() => {
         setQuestions(res);
         setSession("live");

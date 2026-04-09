@@ -58,7 +58,7 @@ export default function ResumeAnalysis() {
     formData.append("resume", file);
 
     try {
-      const res = await apiRequest("/api/v1/resume/upload", {
+      const res = await apiRequest("/api/v1/student/upload-resume", {
         method: "POST",
         body: formData,
       });

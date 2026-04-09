@@ -63,6 +63,15 @@ def get_tasks(
         return []
     return db.query(models.Task).filter(models.Task.student_id == profile.id).all()
 
+@router.get("/mock-interview")
+def get_mock_questions(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> Any:
+    profile = db.query(models.StudentProfile).filter(models.StudentProfile.user_id == current_user.id).first()
+    context = profile.resume_data if profile else {}
+    return ai_service.generate_mock_questions(context)
+
 @router.post("/chat")
 def career_chat(
     message: dict,
@@ -73,8 +82,15 @@ def career_chat(
     context = profile.resume_data if profile else {}
     
     prompt = f"Context: {context}. User: {message.get('text')}"
-    # This would call AIService.mentor_chat in a real version
-    response_text = "Focus on your DSA gaps and build 2 more projects to reach 70% readiness."
+    # Using AI service for mentoring
+    response_text = ai_service._chat_completion(f"You are a career coach. Context: {context}. User: {message.get('text')}. Respond with a brief JSON message: {{ 'message': '...' }}")
+    # Extract message from AI response
+    import json
+    try:
+        data = json.loads(response_text)
+        response_text = data.get("message", "Continue your preparation.")
+    except:
+        response_text = "Continue your preparation focus on DSA."
     
     # Persist chat
     chat = models.ChatHistory(
