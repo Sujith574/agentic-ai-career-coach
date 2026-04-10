@@ -35,6 +35,7 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
+    sub: Optional[str] = None
     email: Optional[str] = None
     role: Optional[str] = None
     org_id: Optional[str] = None

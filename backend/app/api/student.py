@@ -26,7 +26,7 @@ def get_profile(
 
 @router.post("/upload-resume")
 async def upload_resume(
-    file: UploadFile = File(...),
+    resume: UploadFile = File(...),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ) -> Any:
@@ -34,7 +34,7 @@ async def upload_resume(
         raise HTTPException(status_code=400, detail="Not a student user")
     
     # Read file content
-    content = await file.read()
+    content = await resume.read()
     # In a real app, we'd use a PDF parser here. For now, assume it's text.
     resume_text = content.decode("utf-8", errors="ignore")
     
