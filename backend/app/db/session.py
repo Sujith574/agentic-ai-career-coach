@@ -6,6 +6,10 @@ from .base import Base
 # Standard PG or SQLite fallback for local dev
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./career_os.db")
 
+# Render provides postgres:// but SQLAlchemy needs postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # For sqlite, we need check_same_thread=False
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
